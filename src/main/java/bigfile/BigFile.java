@@ -22,18 +22,47 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class BigFile {
 
     public static void main(String[] args) throws InterruptedException {
-        String path = "";
-        new BigFile().deleteFile("D:\\bigFile");
-        new BigFile().writeRandomNum();
-        System.exit(0);
+//        String path = "";
+//        new BigFile().deleteFile("D:\\bigFile");
+//        new BigFile().writeRandomNum();
+        new BigFile().splitToSubFile("D:\\bigFile\\merge.txt");
+//        System.exit(0);
     }
 
 
-    public void sort(String path) {
+    /**
+     * 将大文件中的随机数顺通过大文件分成小文件，小文件排序后，再逐个排序合并
+     * @param path
+     */
+    public void splitToSubFile(String path) {
+
+        List<String> splitFileNamelist = new ArrayList<>();
+        splitToFiles(path, splitFileNamelist);
+        sort(splitFileNamelist);
+    }
+
+    private void splitToFiles(String path, List<String> splitFileNamelist) {
+        int segment = 20;
+        ExecutorService executorService = Executors.newFixedThreadPool(segment);
+        File originFile = new File(path);
+        int splitCount = (int)Math.ceil(originFile.length() / segment);
+        for (int i = 0; i < 20; i++) {
+            String partFileName = "D:\\bigFile\\split\\merge" + "." + i + ".part";
+            splitFileNamelist.add(partFileName);
+            executorService.execute(new SplitFileRunner(
+                    splitCount
+                    ,partFileName
+                    ,originFile
+                    ,i * splitCount
+            ));
+        }
+    }
+
+    public void sort(List<String> fileNameList) {
 
     }
 
-    public void deleteFile(String pathName) {
+    public void deleteFileOnFolderLevel(String pathName) {
         System.out.println("delete file begin");
         File file = new File(pathName);
         File[] files = file.listFiles();
@@ -47,7 +76,17 @@ public class BigFile {
         }
         System.out.println("delete file end");
     }
+    public void deleteFileOnFileLevel(String pathName) {
+        System.out.println("delete file begin");
+        File file = new File(pathName);
+        if (file.isFile()) {
+            boolean delete = file.delete();
+            System.out.println("file "+file.getName()+" delete "+(delete?" success":" fail"));
+        }
+        System.out.println("delete file end");
+    }
 
+    //通过多线程写多个小文件，再合并成一个大文件的方式，将一亿随机数写入一个大文件
     public void writeRandomNum() throws InterruptedException {
         System.out.println("writeRandomNum start");
         long writeRandomNumStartTime = System.currentTimeMillis();
@@ -100,8 +139,8 @@ public class BigFile {
         long mergeStartTime = System.currentTimeMillis();
         merge(fileList,"D:\\bigFile\\merge.txt");
         System.out.println("file merge finish,cost="+(System.currentTimeMillis() - mergeStartTime)/1000 +"s");
-        long nums = getNums(new File("D:\\bigFile\\merge.txt"));
-        System.out.println("merge file nums="+nums);
+//        long nums = getNums(new File("D:\\bigFile\\merge.txt"));
+//        System.out.println("merge file nums="+nums);
         System.out.println("writeRandomNum end,cost="+(System.currentTimeMillis() - writeRandomNumStartTime)/1000 +"s");
     }
 
@@ -122,9 +161,9 @@ public class BigFile {
             long startIndex = 0;
             long totalNums = 0;
             for (File file : fileList) {
-                long subFileNums = getNums(file);
-                totalNums += subFileNums;
-                System.out.println("merge "+file.getName()+",file length="+subFileNums);
+//                long subFileNums = getNums(file);
+//                totalNums += subFileNums;
+                System.out.println("merge "+file.getName());
                 fileInputStream = new FileInputStream(file);
                 inChannel = fileInputStream.getChannel();
                 outChannel.transferFrom(inChannel,startIndex,file.length());
